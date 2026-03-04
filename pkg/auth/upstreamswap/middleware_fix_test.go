@@ -317,12 +317,14 @@ func TestFix_AllFailureModes_Return503(t *testing.T) {
 			rr := httptest.NewRecorder()
 			handler.ServeHTTP(rr, req)
 
-			// FIX VERIFIED: all failure modes now return 503
+			// FIX VERIFIED: all failure modes now return 503 with Retry-After
 			assert.False(t, nextCalled,
 				"FIX VERIFIED (%s): %s — middleware returns 503 instead of forwarding wrong token",
 				tt.name, tt.description)
 			assert.Equal(t, http.StatusServiceUnavailable, rr.Code,
 				"should return 503 for %s", tt.description)
+			assert.Equal(t, retryAfterSeconds, rr.Header().Get("Retry-After"),
+				"should include Retry-After header for %s", tt.description)
 		})
 	}
 }

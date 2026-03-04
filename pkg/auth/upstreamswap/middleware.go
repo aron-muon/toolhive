@@ -113,6 +113,18 @@ func validateConfig(cfg *Config) error {
 	return nil
 }
 
+// retryAfterSeconds is the Retry-After header value (in seconds) sent with 503 responses
+// to hint that clients should retry shortly (e.g., token propagation may be in progress).
+const retryAfterSeconds = "1"
+
+// writeRetryableError writes a 503 Service Unavailable response with a Retry-After header.
+// This signals to clients that the failure may be transient (e.g., token not yet propagated
+// after OAuth callback, storage temporarily unavailable) and retrying is appropriate.
+func writeRetryableError(w http.ResponseWriter, msg string) {
+	w.Header().Set("Retry-After", retryAfterSeconds)
+	http.Error(w, msg, http.StatusServiceUnavailable)
+}
+
 // injectionFunc is a function that injects a token into an HTTP request.
 type injectionFunc func(*http.Request, string)
 
@@ -174,7 +186,7 @@ func createMiddlewareFunc(cfg *Config, storageGetter StorageGetter) types.Middle
 			if stor == nil {
 				slog.Error("Storage unavailable, cannot swap upstream token",
 					"middleware", "upstreamswap")
-				http.Error(w, "upstream token storage unavailable", http.StatusServiceUnavailable)
+				writeRetryableError(w, "upstream token storage unavailable")
 				return
 			}
 
@@ -183,15 +195,15 @@ func createMiddlewareFunc(cfg *Config, storageGetter StorageGetter) types.Middle
 			if err != nil {
 				slog.Error("Failed to get upstream tokens",
 					"middleware", "upstreamswap", "error", err)
-				http.Error(w, "upstream token unavailable", http.StatusServiceUnavailable)
+				writeRetryableError(w, "upstream token unavailable")
 				return
 			}
 
 			// 5. Check if expired
 			if tokens.IsExpired(time.Now()) {
-				slog.Error("Upstream tokens expired, cannot forward request",
+				slog.Warn("Upstream tokens expired, cannot forward request",
 					"middleware", "upstreamswap")
-				http.Error(w, "upstream token expired", http.StatusServiceUnavailable)
+				writeRetryableError(w, "upstream token expired")
 				return
 			}
 
@@ -199,7 +211,7 @@ func createMiddlewareFunc(cfg *Config, storageGetter StorageGetter) types.Middle
 			if tokens.AccessToken == "" {
 				slog.Error("Access token is empty, cannot swap upstream token",
 					"middleware", "upstreamswap")
-				http.Error(w, "upstream access token empty", http.StatusServiceUnavailable)
+				writeRetryableError(w, "upstream access token empty")
 				return
 			}
 

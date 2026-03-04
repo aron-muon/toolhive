@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -22,18 +23,24 @@ import (
 	"github.com/stacklok/toolhive/pkg/transport/types"
 )
 
-// fakeUpstreamTokenStorage is a simple in-memory storage for testing the
-// full proxy chain without gomock.
+// fakeUpstreamTokenStorage is a thread-safe in-memory storage for testing
+// the full proxy chain without gomock. Uses a mutex since the proxy serves
+// requests concurrently.
 type fakeUpstreamTokenStorage struct {
+	mu     sync.RWMutex
 	tokens map[string]*storage.UpstreamTokens
 }
 
 func (f *fakeUpstreamTokenStorage) StoreUpstreamTokens(_ context.Context, sessionID string, tokens *storage.UpstreamTokens) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.tokens[sessionID] = tokens
 	return nil
 }
 
 func (f *fakeUpstreamTokenStorage) GetUpstreamTokens(_ context.Context, sessionID string) (*storage.UpstreamTokens, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 	t, ok := f.tokens[sessionID]
 	if !ok {
 		return nil, storage.ErrNotFound
@@ -42,9 +49,14 @@ func (f *fakeUpstreamTokenStorage) GetUpstreamTokens(_ context.Context, sessionI
 }
 
 func (f *fakeUpstreamTokenStorage) DeleteUpstreamTokens(_ context.Context, sessionID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	delete(f.tokens, sessionID)
 	return nil
 }
+
+// testMCPInitializeBody is a minimal JSON-RPC initialize request used in integration tests.
+const testMCPInitializeBody = `{"jsonrpc":"2.0","method":"initialize","id":"1","params":{}}`
 
 // fakeAuthMiddleware creates a middleware that injects a fixed identity into
 // the request context, simulating the auth middleware in the real proxy chain.
@@ -160,7 +172,7 @@ func TestFix_EndToEnd_StorageFailure_Returns503_NotForwarded(t *testing.T) {
 	require.NotNil(t, addr)
 
 	proxyURL := fmt.Sprintf("http://%s/v2/mcp", addr.String())
-	body := `{"jsonrpc":"2.0","method":"initialize","id":"1","params":{}}`
+	body := testMCPInitializeBody
 	req, err := http.NewRequest("POST", proxyURL, strings.NewReader(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
@@ -246,7 +258,7 @@ func TestFix_EndToEnd_ExpiredToken_Returns503_NotForwarded(t *testing.T) {
 	require.NotNil(t, addr)
 
 	proxyURL := fmt.Sprintf("http://%s/v2/mcp", addr.String())
-	body := `{"jsonrpc":"2.0","method":"initialize","id":"1","params":{}}`
+	body := testMCPInitializeBody
 	req, err := http.NewRequest("POST", proxyURL, strings.NewReader(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
@@ -333,7 +345,7 @@ func TestFix_EndToEnd_ValidToken_ForwardedSuccessfully(t *testing.T) {
 	require.NotNil(t, addr)
 
 	proxyURL := fmt.Sprintf("http://%s/v2/mcp", addr.String())
-	body := `{"jsonrpc":"2.0","method":"initialize","id":"1","params":{}}`
+	body := testMCPInitializeBody
 	req, err := http.NewRequest("POST", proxyURL, strings.NewReader(body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
