@@ -735,18 +735,12 @@ func (s *MemoryStorage) GetUpstreamTokens(_ context.Context, sessionID string) (
 		return nil, fmt.Errorf("%w: %w", ErrNotFound, fosite.ErrNotFound.WithHint("Upstream tokens not found"))
 	}
 
-	// Check if expired
-	if time.Now().After(entry.expiresAt) {
-		slog.Debug("upstream tokens expired", "session_id", sessionID)
-		return nil, ErrExpired
-	}
-
 	// Return a defensive copy to prevent aliasing issues
 	tokens := entry.value
 	if tokens == nil {
 		return nil, nil
 	}
-	return &UpstreamTokens{
+	result := &UpstreamTokens{
 		ProviderID:      tokens.ProviderID,
 		AccessToken:     tokens.AccessToken,
 		RefreshToken:    tokens.RefreshToken,
@@ -755,7 +749,15 @@ func (s *MemoryStorage) GetUpstreamTokens(_ context.Context, sessionID string) (
 		UserID:          tokens.UserID,
 		UpstreamSubject: tokens.UpstreamSubject,
 		ClientID:        tokens.ClientID,
-	}, nil
+	}
+
+	// Return tokens along with ErrExpired so callers can use the refresh token
+	if time.Now().After(entry.expiresAt) {
+		slog.Debug("upstream tokens expired", "session_id", sessionID)
+		return result, ErrExpired
+	}
+
+	return result, nil
 }
 
 // DeleteUpstreamTokens removes the upstream IDP tokens for a session.
