@@ -37,7 +37,6 @@ const (
 	// DefaultPKCETTL is the default TTL for PKCE requests (same as auth codes).
 	DefaultPKCETTL = 10 * time.Minute
 
-
 	// DefaultPublicClientTTL is the TTL for dynamically registered public clients.
 	// This prevents unbounded growth from DCR. Confidential clients don't expire.
 	DefaultPublicClientTTL = 30 * 24 * time.Hour // 30 days
