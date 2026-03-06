@@ -18,6 +18,8 @@ permissions:
 jobs:
   trivy-repo-scan:
     name: Trivy Repository Scan
+    # Skip on forks — upload-sarif requires GitHub Advanced Security which is unavailable on forks
+    if: github.repository == 'stacklok/toolhive'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -40,6 +42,8 @@ jobs:
 
   trivy-config-scan:
     name: Trivy Configuration Scan
+    # Skip on forks — upload-sarif requires GitHub Advanced Security which is unavailable on forks
+    if: github.repository == 'stacklok/toolhive'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

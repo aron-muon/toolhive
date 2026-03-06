@@ -185,7 +185,7 @@ jobs:
 
   publish-helm:
     name: Publish Helm Chart
-    needs: [image-build-and-push]
+    # needs: [image-build-and-push]
     permissions:
       contents: read
       packages: write

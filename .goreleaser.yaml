@@ -34,6 +34,7 @@ archives:
 # This section defines how to release to winget.
 winget:
  - name: thv
+   skip_upload: true
    publisher: stacklok
    license: Apache-2.0
    license_url: "https://github.com/stacklok/toolhive/blob/main/LICENSE"
@@ -42,8 +43,7 @@ winget:
    short_description: 'ToolHive is a lightweight, secure, and fast manager for MCP (Model Context Protocol) servers'
    publisher_support_url: "https://github.com/stacklok/toolhive/issues/new/choose"
    package_identifier: "stacklok.thv"
-   url_template: "https://github.com/stacklok/toolhive/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
-   skip_upload: auto
+   url_template: "https://github.com/{{ .Env.GITHUB_REPOSITORY_OWNER }}/toolhive/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
    release_notes: "{{.Changelog}}"
    tags:
      - golang
@@ -72,6 +72,7 @@ winget:
 # This section defines how to release to homebrew.
 brews:
   - name: thv
+    skip_upload: true
     homepage: 'https://github.com/stacklok/toolhive'
     description: 'ToolHive (thv) is a lightweight, secure, and fast manager for MCP (Model Context Protocol) servers'
     directory: Formula
@@ -97,7 +98,7 @@ sboms:
 # This section defines the release policy.
 release:
   github:
-    owner: stacklok
+    owner: "{{ .Env.GITHUB_REPOSITORY_OWNER }}"
     name: toolhive
   extra_files:
     - glob: build/thv-cli-docs.tar.gz
