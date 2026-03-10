@@ -5,6 +5,7 @@ package storage
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -62,6 +63,9 @@ type RedisConfig struct {
 	DialTimeout  time.Duration
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
+
+	// TLSEnabled enables TLS for connections to the Redis master.
+	TLSEnabled bool
 }
 
 // SentinelConfig contains Redis Sentinel configuration.
@@ -117,7 +121,7 @@ func NewRedisStorage(ctx context.Context, cfg RedisConfig) (*RedisStorage, error
 		cfg.WriteTimeout = DefaultWriteTimeout
 	}
 
-	client := redis.NewFailoverClient(&redis.FailoverOptions{
+	opts := &redis.FailoverOptions{
 		MasterName:    cfg.SentinelConfig.MasterName,
 		SentinelAddrs: cfg.SentinelConfig.SentinelAddrs,
 		DB:            cfg.SentinelConfig.DB,
@@ -126,7 +130,15 @@ func NewRedisStorage(ctx context.Context, cfg RedisConfig) (*RedisStorage, error
 		DialTimeout:   cfg.DialTimeout,
 		ReadTimeout:   cfg.ReadTimeout,
 		WriteTimeout:  cfg.WriteTimeout,
-	})
+	}
+
+	if cfg.TLSEnabled {
+		opts.TLSConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+	}
+
+	client := redis.NewFailoverClient(opts)
 
 	// Test connection
 	if err := client.Ping(ctx).Err(); err != nil {
@@ -240,7 +252,7 @@ func (s *RedisStorage) RegisterClient(ctx context.Context, client fosite.Client)
 		Public:        client.IsPublic(),
 	}
 
-	data, err := json.Marshal(stored)
+	data, err := json.Marshal(stored) //nolint:gosec // G117 - internal Redis storage serialization, not exposed to users
 	if err != nil {
 		return fmt.Errorf("failed to marshal client: %w", err)
 	}
@@ -760,7 +772,7 @@ func marshalUpstreamTokensWithTTL(tokens *UpstreamTokens) ([]byte, time.Duration
 		ClientID:        tokens.ClientID,
 	}
 
-	data, err := json.Marshal(stored)
+	data, err := json.Marshal(stored) //nolint:gosec // G117 - internal Redis storage serialization, not exposed to users
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to marshal upstream tokens: %w", err)
 	}
@@ -940,7 +952,7 @@ func (s *RedisStorage) StorePendingAuthorization(ctx context.Context, state stri
 		CreatedAt:            pending.CreatedAt.Unix(),
 	}
 
-	data, err := json.Marshal(stored)
+	data, err := json.Marshal(stored) //nolint:gosec // G117 - internal Redis storage serialization, not exposed to users
 	if err != nil {
 		return fmt.Errorf("failed to marshal pending authorization: %w", err)
 	}
@@ -1029,7 +1041,7 @@ func (s *RedisStorage) CreateUser(ctx context.Context, user *User) error {
 		UpdatedAt: user.UpdatedAt.Unix(),
 	}
 
-	data, err := json.Marshal(stored)
+	data, err := json.Marshal(stored) //nolint:gosec // G117 - internal Redis storage serialization, not exposed to users
 	if err != nil {
 		return fmt.Errorf("failed to marshal user: %w", err)
 	}
@@ -1161,7 +1173,7 @@ func (s *RedisStorage) CreateProviderIdentity(ctx context.Context, identity *Pro
 		LastUsedAt:      identity.LastUsedAt.Unix(),
 	}
 
-	data, err := json.Marshal(stored)
+	data, err := json.Marshal(stored) //nolint:gosec // G117 - internal Redis storage serialization, not exposed to users
 	if err != nil {
 		return fmt.Errorf("failed to marshal identity: %w", err)
 	}

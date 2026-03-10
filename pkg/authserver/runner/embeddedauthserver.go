@@ -481,6 +481,8 @@ func convertRedisRunConfig(rc *storage.RedisRunConfig) (*storage.RedisConfig, er
 		cfg.WriteTimeout = d
 	}
 
+	cfg.TLSEnabled = rc.TLSEnabled
+
 	return cfg, nil
 }
 
