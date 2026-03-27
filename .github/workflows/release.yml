@@ -1,0 +1,25 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  images:
+    name: Build and Sign Images
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/image-build-and-publish.yml
+
+  helm:
+    name: Publish Helm Charts
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/helm-publish.yml
