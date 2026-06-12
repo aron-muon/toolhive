@@ -1,3 +1,17 @@
+> [!NOTE]
+> **This is Muon Space's fork of [stacklok/toolhive](https://github.com/stacklok/toolhive).**
+> It tracks upstream `main` plus a small set of deltas:
+>
+> - **CI**: upstream's CI is stripped; only image build/publish, Helm chart publish, and the
+>   release workflow remain. Images are published to `ghcr.io/aron-muon/toolhive`
+>   (`/egress-proxy`, `/operator`, `/proxyrunner`, `/vmcp`) and Helm charts to the same
+>   GHCR namespace. Pushes to `main` build images; GitHub Releases publish images + charts.
+> - **MCPRemoteProxy HA** (pending upstream [#5237](https://github.com/stacklok/toolhive/pull/5237)):
+>   `spec.replicas` and `spec.sessionStorage` for horizontally scaled remote proxies.
+>
+> Everything else is upstream. Feature work is submitted upstream first; this fork carries
+> patches only until they merge.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/toolhive-byline-white.svg">
   <img src="docs/images/toolhive-byline-black.svg" alt="ToolHive logo" width="500"/>
